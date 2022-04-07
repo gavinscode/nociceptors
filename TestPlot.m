@@ -11,6 +11,8 @@ axDirs = {'normal', 'normal', 'reverse', 'reverse'};
 %%% Could colour lines by percentage of nociceptors
 cols = lines(5);
 
+%%% Distinguish missing data from nonsensitive 
+
 % Frog
 subplot(2,2,1);
 frog_A_thresh = [26.5 39 7 2.8];

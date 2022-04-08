@@ -8,18 +8,21 @@ figure;
 subplot(2,2,1); hold on; axis square
 
 % threhsold at top
-temp = force; temp(temp > 5) = 5;
-l1 = plot(force, temp*2, 'g', 'linewidth',2);
+forceActivity_linearSensitize = force; forceActivity_linearSensitize(forceActivity_linearSensitize > 5) = 5;
+forceActivity_linearSensitize = forceActivity_linearSensitize*2;
+l1 = plot(force, forceActivity_linearSensitize, 'g', 'linewidth',2);
 
-l2 = plot(force, 2*(force/2), 'r', 'linewidth',2);
+forceActivity_linearExpand = 2*(force/2);
+l2 = plot(force, forceActivity_linearExpand, 'r', 'linewidth',2);
 
-l3 = plot(force, force/2, 'b', 'linewidth',2);
+forceActivity_linearCompress = force/2;
+l3 = plot(force, forceActivity_linearCompress, 'b', 'linewidth',2);
 
-temp = force; temp(temp > 5) = 5;
-l4 = plot(force, temp, 'k', 'linewidth',2);
+forceActivity_linearStandard = force; forceActivity_linearStandard(forceActivity_linearStandard > 5) = 5;
+l4 = plot(force, forceActivity_linearStandard, 'k', 'linewidth',2);
 
 xlabel('Stimulus intensity')
-ylabel('Firing rate')
+ylabel('Activity')
 
 ylim([0 10]); xlim([0 10])
 
@@ -91,21 +94,123 @@ ylim([0 10]); xlim([0 10])
 title('Sigmoid functions - gain lower range')
 
 %% Explore two stimuli - w planes
+% close all
+% could put heat relevant curve here.
+otherIntensity = force;
+otherActivity_linearStandard = forceActivity_linearStandard;
+otherActivity_linearExpand = forceActivity_linearExpand;
+otherActivity_linearCompress = forceActivity_linearCompress;
+otherActivity_linearSensitize = forceActivity_linearSensitize;
 
-figure; hold on; axis equal;
-surf = fit([0 0; 1 0; 0 1;], [0 1 1]', 'poly11');
-plot(surf)
+figure; 
+% plot different combinations
+% Standard x
+% 1-1 Standard y - everything is equal (reference on all plots)
+standardX = [force zeros(1,length(otherIntensity))];
+standardY = [zeros(1,length(force)) otherIntensity ];
+standardZ = [forceActivity_linearStandard otherActivity_linearStandard];
 
-line([0 1], [0 0], [0 1], 'color', 'm')
-line([0 0], [0 1], [0 1], 'color', 'm')
-% line([1 0], [1 1], [0 1], 'color', 'm')
+% Get hull
+standardFaces = convhull(standardX, standardY, standardZ);
 
-line([0 1], [0 0], [0 1], 'color', 'k')
-line([0 2], [0 0], [0 1], 'color', 'b')
-line([0 1], [0 0], [0 2], 'color', 'g')
-line([0 2], [0 0], [0 2], 'color', 'r')
+% Remove sides based on normal direction - doesnt have a bottom
+tempNormals = meshFaceNormals([standardX', standardY', standardZ'], standardFaces);
+standardFaces = standardFaces(tempNormals(:,3) > 0,:);
 
-xlabel('stim 1'); ylabel('stim 2'); zlabel('activity')
+% Plot on all
+for i = 1:16
+    subplot(4,4,i); hold on; axis equal; view([30 30])
+    
+    trisurf(standardFaces, standardX, standardY, standardZ-0.1, 'Facecolor', 'k', 'Edgecolor', 'none', 'FaceAlpha', 0.3);
+    plot3(force, zeros(1,length(otherIntensity)), forceActivity_linearStandard, 'k', 'linewidth',2);
+    plot3(zeros(1,length(force)), otherIntensity, otherActivity_linearStandard, 'k', 'linewidth',2);
+    
+    xlabel('S1'); ylabel('S2'); zlabel('A')
+end
+
+forceActivityArray = [forceActivity_linearStandard', forceActivity_linearExpand', forceActivity_linearCompress', forceActivity_linearSensitize'];
+otherActivityArray = [otherActivity_linearStandard', otherActivity_linearExpand', otherActivity_linearCompress', otherActivity_linearSensitize'];
+
+colorArray = [0 0 0; 1 0 0; 0 0 1; 0 1 0];
+
+% Step through X
+for i = 1:4
+    % Step throuhg y
+    for j = 1:4
+       % Dont need to do for standard vs. standard
+       if i > 1 | j > 1
+           subplot(4,4,4*(i-1)+j);
+           
+           tempX = [force zeros(1,length(otherIntensity))];
+           tempY = [zeros(1,length(force)) otherIntensity ];
+           tempZ = [forceActivityArray(:,i)' otherActivityArray(:,j)'];
+           
+           % Convex hull doesn't work if points are coplanar, so expansion can't have only expansion and/or compression
+           if i == 1 | i == 4 | j == 1 | j == 4
+               tempFaces = convhull(tempX, tempY, tempZ);
+
+               tempNormals = meshFaceNormals([tempX', tempY', tempZ'], tempFaces);
+               tempFaces = tempFaces(tempNormals(:,3) > 0,:);
+           else
+             % Line is coplanar, so just make simple triangle  
+             tempFaces = [1 length(force), length(tempX)];
+           end
+            
+           tempCol = (colorArray(i,:) + colorArray(j,:))/2;
+           trisurf(tempFaces, tempX, tempY, tempZ, 'Facecolor', tempCol, 'Edgecolor', 'none', 'FaceAlpha', 0.6);
+               
+           plot3(force, zeros(1,length(otherIntensity)), forceActivityArray(:,i), 'color', colorArray(i,:), 'linewidth',2);
+           plot3(zeros(1,length(force)), otherIntensity, otherActivityArray(:,j), 'color', colorArray(j,:), 'linewidth',2);
+       end
+    end
+end
+
+% 1-2 Expanding y
+% subplot(5,4,4+2);
+% 
+% tempFaces = convhull(tempX, tempY, tempZ);
+% 
+% tempNormals = meshFaceNormals([tempX', tempY', tempZ'], tempFaces);
+% tempFaces = tempFaces(tempNormals(:,3) > 0,:);
+% 
+% 
+% xlabel('Stimulus 1 intnsity'); ylabel('Stimulus 2 intensity'); zlabel('Activity')
+% 
+% % 1-3 Compressing y
+% subplot(5,4,4+3);
+% tempX = [force zeros(1,length(otherIntensity))];
+% tempY = [zeros(1,length(force)) otherIntensity ];
+% tempZ = [forceActivity_linearStandard otherActivity_linearCompress];
+% 
+% tempFaces = convhull(tempX, tempY, tempZ);
+% 
+% tempNormals = meshFaceNormals([tempX', tempY', tempZ'], tempFaces);
+% tempFaces = tempFaces(tempNormals(:,3) > 0,:);
+% 
+%  trisurf(tempFaces, tempX, tempY, tempZ, 'Facecolor', 'b', 'Edgecolor', 'none', 'FaceAlpha', 0.5);
+% 
+% plot3(force, zeros(1,length(otherIntensity)), forceActivity_linearStandard, 'k', 'linewidth',2);
+% plot3(zeros(1,length(force)), otherIntensity, otherActivity_linearCompress, 'b', 'linewidth',2);
+% xlabel('Stimulus 1 intnsity'); ylabel('Stimulus 2 intensity'); zlabel('Activity')
+% 
+% % Sensitizing y
+% subplot(5,4,4+4);
+% tempX = [force zeros(1,length(otherIntensity))];
+% tempY = [zeros(1,length(force)) otherIntensity ];
+% tempZ = [forceActivity_linearStandard otherActivity_linearSensitize];
+% 
+% tempFaces = convhull(tempX, tempY, tempZ);
+% 
+% tempNormals = meshFaceNormals([tempX', tempY', tempZ'], tempFaces);
+% tempFaces = tempFaces(tempNormals(:,3) > 0,:);
+% 
+%  trisurf(tempFaces, tempX, tempY, tempZ, 'Facecolor', 'g', 'Edgecolor', 'none', 'FaceAlpha', 0.5);
+% 
+% plot3(force, zeros(1,length(otherIntensity)), forceActivity_linearStandard, 'k', 'linewidth',2);
+% plot3(zeros(1,length(force)), otherIntensity, otherActivity_linearSensitize, 'g', 'linewidth',2);
+% xlabel('Stimulus 1 intnsity'); ylabel('Stimulus 2 intensity'); zlabel('Activity')
+
+
 
 %% Explore two stimuli - with sigmoids, didn't work so well
 
